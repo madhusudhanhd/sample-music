@@ -1,0 +1,384 @@
+Sure! Below is a complete source code example for a Spring Boot music streaming application, incorporating the optimizations discussed earlier. This example includes models, repositories, services, controllers, and configuration.
+
+### Project Structure
+
+```
+music-streaming/
+|-- src/
+|   |-- main/
+|       |-- java/
+|       |   |-- com/
+|       |       |-- musicstreaming/
+|       |           |-- MusicStreamingApplication.java
+|       |           |-- controller/
+|       |           |   |-- TrackController.java
+|       |           |-- model/
+|       |           |   |-- Track.java
+|       |           |   |-- Artist.java
+|       |           |   |-- Album.java
+|       |           |-- dto/
+|       |           |   |-- TrackDTO.java
+|       |           |-- service/
+|       |           |   |-- TrackService.java
+|       |           |-- repository/
+|       |               |-- TrackRepository.java
+|       |-- resources/
+|           |-- application.properties
+|-- pom.xml
+```
+
+### 1. **Maven Dependencies (pom.xml)**
+
+```xml
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.musicstreaming</groupId>
+    <artifactId>music-streaming</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>music-streaming</name>
+    <description>Music Streaming API</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <spring-boot.version>3.0.0</spring-boot.version>
+    </properties>
+
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.h2database</groupId>
+        <artifactId>h2</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <optional>true</optional>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+### 2. **Application Properties (application.properties)**
+
+```properties
+spring.h2.console.enabled=true
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.jpa.hibernate.ddl-auto=update
+
+# Caching settings
+spring.cache.type=simple
+
+# HikariCP settings
+spring.datasource.hikari.maximum-pool-size=10
+spring.datasource.hikari.minimum-idle=5
+spring.datasource.hikari.idle-timeout=30000
+
+# Compression settings
+server.compression.enabled=true
+server.compression.mime-types=text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+server.compression.min-response-size=1024
+```
+
+### 3. **Main Application Class (MusicStreamingApplication.java)**
+
+```java
+package com.musicstreaming;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class MusicStreamingApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(MusicStreamingApplication.class, args);
+    }
+}
+```
+
+### 4. **Model Classes**
+
+#### Track.java
+
+```java
+package com.musicstreaming.model;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import javax.persistence.*;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Track {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String title;
+    private Long artistId;
+    private Long albumId;
+    private Integer duration; // in seconds
+    private String genre;
+    private String releaseDate;
+    private String previewUrl;
+}
+```
+
+#### Artist.java
+
+```java
+package com.musicstreaming.model;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import javax.persistence.*;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Artist {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    private String bio;
+    private String genre;
+    private String imageUrl;
+}
+```
+
+#### Album.java
+
+```java
+package com.musicstreaming.model;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import javax.persistence.*;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Album {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String title;
+    private Long artistId;
+    private String releaseDate;
+    private String coverUrl;
+}
+```
+
+### 5. **DTO Classes**
+
+#### TrackDTO.java
+
+```java
+package com.musicstreaming.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class TrackDTO {
+    private Long id;
+    private String title;
+    private String artistName; // Include only necessary fields
+}
+```
+
+### 6. **Repository Interface**
+
+#### TrackRepository.java
+
+```java
+package com.musicstreaming.repository;
+
+import com.musicstreaming.model.Track;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface TrackRepository extends JpaRepository<Track, Long> {
+}
+```
+
+### 7. **Service Layer**
+
+#### TrackService.java
+
+```java
+package com.musicstreaming.service;
+
+import com.musicstreaming.dto.TrackDTO;
+import com.musicstreaming.model.Track;
+import com.musicstreaming.repository.TrackRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class TrackService {
+    @Autowired
+    private TrackRepository trackRepository;
+
+    public Page<TrackDTO> getTracks(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return trackRepository.findAll(pageable).map(this::convertToDTO);
+    }
+
+    public Track getTrackById(Long id) {
+        return trackRepository.findById(id).orElse(null);
+    }
+
+    public Track addTrack(Track track) {
+        return trackRepository.save(track);
+    }
+
+    public Track updateTrack(Long id, Track track) {
+        if (trackRepository.existsById(id)) {
+            track.setId(id);
+            return trackRepository.save(track);
+        }
+        return null;
+    }
+
+    public void deleteTrack(Long id) {
+        trackRepository.deleteById(id);
+    }
+
+    private TrackDTO convertToDTO(Track track) {
+        return new TrackDTO(track.getId(), track.getTitle(), "Artist Name Placeholder"); // Replace with actual artist name
+    }
+}
+```
+
+### 8. **Controller Layer**
+
+#### TrackController.java
+
+```java
+package com.musicstreaming.controller;
+
+import com.musicstreaming.dto.TrackDTO;
+import com.musicstreaming.model.Track;
+import com.musicstreaming.service.TrackService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import org.springframework.data.domain.Page;
+
+@RestController
+@RequestMapping("/api/v1/tracks")
+public class TrackController {
+    @Autowired
+    private TrackService trackService;
+
+    @GetMapping
+    public Page<TrackDTO> getAllTracks(@RequestParam(defaultValue = "0") int page, 
+                                        @RequestParam(defaultValue = "10") int size) {
+        return trackService.getTracks(page, size);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Track> getTrackById(@PathVariable Long id) {
+        Track track = trackService.getTrackById(id);
+        return track != null ? ResponseEntity.ok(track) : ResponseEntity.notFound().build();
+    }
+
+    @PostMapping
+    public ResponseEntity<Track> addTrack(@RequestBody Track track) {
+        Track createdTrack = trackService.addTrack(track);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdTrack);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Track> updateTrack(@PathVariable Long id, @
+
+RequestBody Track track) {
+        Track updatedTrack = trackService.updateTrack(id, track);
+        return updatedTrack != null ? ResponseEntity.ok(updatedTrack) : ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTrack(@PathVariable Long id) {
+        trackService.deleteTrack(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+```
+
+### 9. **Running the Application**
+
+You can run the application using the command line:
+
+```bash
+mvn spring-boot:run
+```
+
+### 10. **Testing the API**
+
+Use a tool like Postman or Curl to interact with your API:
+
+- **Get all tracks**: `GET http://localhost:8080/api/v1/tracks?page=0&size=10`
+- **Get a specific track**: `GET http://localhost:8080/api/v1/tracks/{id}`
+- **Add a new track**: `POST http://localhost:8080/api/v1/tracks` with a JSON body.
+- **Update a track**: `PUT http://localhost:8080/api/v1/tracks/{id}` with a JSON body.
+- **Delete a track**: `DELETE http://localhost:8080/api/v1/tracks/{id}`.
+
+### Conclusion
+
+This complete source code provides a solid foundation for your music streaming REST API, with optimizations for performance and efficiency. You can extend this application by adding more features like authentication, advanced querying, and more complex data relationships as needed.
